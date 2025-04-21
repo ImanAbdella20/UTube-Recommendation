@@ -4,7 +4,7 @@ import Link from 'next/link'
 export default function VideoCard({ video }: { video: any }) {
   return (
     <Link href={`/videos/${video.id}`} className="group">
-      <div className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+      <div className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow ">
         <div className="relative aspect-video">
           <Image
             src={video.thumbnail}

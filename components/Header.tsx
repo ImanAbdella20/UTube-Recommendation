@@ -1,8 +1,14 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 import { FiSearch, FiFilter, FiUser, FiBookmark , FiHeart} from 'react-icons/fi';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const Header = () => {
+
+  const [activeLink, setActiveLink] = useState('home');
+  
   return (
     <header className="bg-white shadow-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -15,14 +21,30 @@ const Header = () => {
           className='object-contain'
           />
             
-          <nav className="hidden md:flex space-x-6">
-            <a href="#" className="text-black-100 hover:text-primary-blue font-inter font-medium">
-              Home
-            </a>
-            <a href="#" className="text-black-100 hover:text-primary-blue font-inter font-medium">
-              Video
-            </a>
            
+            <nav className="hidden md:flex space-x-6">
+            <Link 
+              href="/" 
+              className={`font-inter font-medium ${
+                activeLink === 'home' 
+                  ? 'text-primary-blue' 
+                  : 'text-black-100 hover:text-primary-blue'
+              }`}
+              onClick={() => setActiveLink('home')}
+            >
+              Home
+            </Link>
+            <Link
+              href="/videos"
+              className={`font-inter font-medium ${
+                activeLink === 'videos' 
+                  ? 'text-primary-blue' 
+                  : 'text-black-100 hover:text-primary-blue'
+              }`}
+              onClick={() => setActiveLink('videos')}
+            >
+              Videos
+            </Link>
           </nav>
         </div>
 

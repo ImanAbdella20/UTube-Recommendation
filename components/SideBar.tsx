@@ -46,7 +46,7 @@ const qualities = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 h-screen sticky top-0 p-4 bg-white shadow-sm">
+    <aside className=" w-74 h-screen sticky left-0 bg-white shadow-sm p-6 ">
       <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
         <FiFilter className="text-primary-blue" />
         Filters
