@@ -1,10 +1,10 @@
-import Image from 'next/image'
-import Link from 'next/link'
+import Image from 'next/image';
+import Link from 'next/link';
 
-export default function VideoCard({ video }: { video: any }) {
+export default function VideoCard({ video, basePath }: { video: any; basePath: string }) {
   return (
-    <Link href={`/videos/${video.id}`} className="group">
-      <div className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow ">
+    <Link href={`/${basePath}/${video.id}`} className="group">
+      <div className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         <div className="relative aspect-video">
           <Image
             src={video.thumbnail}
@@ -24,5 +24,5 @@ export default function VideoCard({ video }: { video: any }) {
         </div>
       </div>
     </Link>
-  )
+  );
 }

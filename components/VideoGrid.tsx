@@ -5,7 +5,11 @@ import VideoCard from './VideoCard'
 import { Video } from '@/types/FilterState'
 import { useEffect, useState } from 'react'
 
-export default function VideoGrid({ searchParams }: { searchParams: any }) {
+interface VideoGridProps {
+  searchParams: Record<string, string>
+}
+
+export default function VideoGrid({ searchParams }: VideoGridProps) {
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -15,12 +19,12 @@ export default function VideoGrid({ searchParams }: { searchParams: any }) {
       try {
         setLoading(true)
         setError(null)
-        
-        const videosData = Object.keys(searchParams).length === 0
+
+        const data = Object.keys(searchParams).length === 0
           ? await fetchInitialVideos()
           : await fetchVideos(searchParams)
-        
-        setVideos(videosData)
+
+        setVideos(data)
       } catch (err) {
         console.error('Failed to load videos:', err)
         setError('Failed to load videos. Please try again later.')
@@ -29,7 +33,7 @@ export default function VideoGrid({ searchParams }: { searchParams: any }) {
         setLoading(false)
       }
     }
-    
+
     loadVideos()
   }, [searchParams])
 
@@ -59,9 +63,9 @@ export default function VideoGrid({ searchParams }: { searchParams: any }) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {videos.map((video) => (
-        <VideoCard key={video.id} video={video} />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:w-[100%]">
+      {videos.map((video: any) => (
+        <VideoCard key={video.id} video={video} basePath="videos" />
       ))}
     </div>
   )

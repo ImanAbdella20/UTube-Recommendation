@@ -1,7 +1,9 @@
-// lib/api/videos.ts
 import { Video, YouTubeApiResponse, YouTubeVideo, YouTubeVideoDetails, YouTubeVideoDetailsResponse } from '@/types/FilterState';
 
-const API_KEY = process.env.YOUTUBE_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+if (!API_KEY) {
+  throw new Error("YouTube API key is not configured");
+}
 const BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
 export async function fetchInitialVideos(): Promise<Video[]> {
@@ -54,18 +56,38 @@ export async function fetchVideos(filters: Record<string, string>): Promise<Vide
       }&key=${API_KEY}`
     );
     
+    if (!response.ok) {
+      throw new Error(`YouTube API error: ${response.status}`);
+    }
+    
     const data: YouTubeApiResponse = await response.json();
+    
+    if (!data?.items) {
+      return [];
+    }
     
     const videoIds = data.items
       .map((item: YouTubeVideo) => item.id?.videoId)
       .filter((id): id is string => !!id)
       .join(',');
     
+    if (!videoIds) {
+      return [];
+    }
+    
     const detailsResponse = await fetch(
       `${BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${API_KEY}`
     );
     
+    if (!detailsResponse.ok) {
+      throw new Error(`YouTube API details error: ${detailsResponse.status}`);
+    }
+    
     const detailsData: YouTubeVideoDetailsResponse = await detailsResponse.json();
+    
+    if (!detailsData?.items) {
+      return [];
+    }
     
     const videos: Video[] = data.items.map((item: YouTubeVideo, index: number) => {
       const details = detailsData.items[index];
@@ -84,7 +106,6 @@ export async function fetchVideos(filters: Record<string, string>): Promise<Vide
       };
     });
     
-    // Apply filters
     return applyFilters(videos, filters).slice(0, 9);
   } catch (error) {
     console.error('Error fetching filtered videos:', error);
