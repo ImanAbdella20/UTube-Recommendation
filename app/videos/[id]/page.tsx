@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { FiBookmark, FiHeart } from 'react-icons/fi';
+import { FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
 import { formatViews, formatPublishedAt } from '@/lib/api/videos';
 import { useVideoStore } from '@/store/videoStore';
 
@@ -28,8 +28,17 @@ export default function VideoPage() {
   const [notes, setNotes] = useState<string[]>([]);
   const [newNote, setNewNote] = useState("");
   const [showAllNotes, setShowAllNotes] = useState(false);
-  
-  const { bookmarks, favorites, addBookmark, addFavorite } = useVideoStore();
+  const {
+    bookmarks,
+    favorites,
+    addBookmark,
+    removeBookmark,
+    addFavorite,
+    removeFavorite
+  } = useVideoStore();
+
+
+
 
   useEffect(() => {
     if (!id) return;
@@ -72,15 +81,24 @@ export default function VideoPage() {
     fetchVideoDetails();
   }, [id]);
 
+
   const handleBookmark = () => {
     if (videoDetails) {
-      addBookmark(videoDetails.id);
+      if (bookmarks.includes(videoDetails.id)) {
+        removeBookmark(videoDetails.id);
+      } else {
+        addBookmark(videoDetails.id);
+      }
     }
   };
 
   const handleFavorite = () => {
     if (videoDetails) {
-      addFavorite(videoDetails.id);
+      if (favorites.includes(videoDetails.id)) {
+        removeFavorite(videoDetails.id);
+      } else {
+        addFavorite(videoDetails.id);
+      }
     }
   };
 
@@ -209,14 +227,29 @@ export default function VideoPage() {
           <h2 className="text-xl font-bold mb-4">Take Notes From The Video</h2>
 
           <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-4 space-y-3">
-              {notes.slice(0, 3).map((note, index) => (
-                <div key={index} className="flex items-start">
-                  <span className="mr-2 text-gray-500">•</span>
-                  <span className="text-gray-700">{note}</span>
-                </div>
-              ))}
-            </div>
+              <div className="p-4 space-y-3">
+                {notes.slice(0, 3).map((note, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start group hover:bg-gray-50 rounded transition-colors"
+                  >
+                    <span className="mr-2 text-gray-500">•</span>
+                    <span className="text-gray-700 flex-grow">{note}</span>
+                    <button
+                      onClick={() => {
+                        const updatedNotes = [...notes];
+                        updatedNotes.splice(index, 1);
+                        setNotes(updatedNotes);
+                      }}
+                      className="ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                      aria-label={`Delete note ${index + 1}`}
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
 
             {notes.length > 3 && (
               <div className={`px-4 ${showAllNotes ? 'pb-4' : ''}`}>

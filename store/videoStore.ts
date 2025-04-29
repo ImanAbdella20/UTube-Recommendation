@@ -38,7 +38,6 @@ export const useVideoStore = create<VideoStore>()(
     }),
     {
       name: 'video-storage',
-      // Optional: add a debug callback
       onRehydrateStorage: () => (state) => {
         console.log('Rehydrating video store...', state);
       },
