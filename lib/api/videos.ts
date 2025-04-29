@@ -113,7 +113,7 @@ export async function fetchVideos(filters: Record<string, string>): Promise<Vide
   }
 }
 
-function applyFilters(videos: Video[], filters: Record<string, string>): Video[] {
+export function applyFilters(videos: Video[], filters: Record<string, string>): Video[] {
   let filteredVideos = [...videos];
 
   if (filters.duration) {
@@ -153,7 +153,7 @@ function applyFilters(videos: Video[], filters: Record<string, string>): Video[]
 }
 
 // Helper functions remain the same with proper typing
-function formatViews(count: string): string {
+export function formatViews(count: string): string {
   const num = parseInt(count);
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1)}M`;
@@ -164,7 +164,7 @@ function formatViews(count: string): string {
   return count;
 }
 
-function formatPublishedAt(dateString: string): string {
+export function formatPublishedAt(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -177,7 +177,7 @@ function formatPublishedAt(dateString: string): string {
   return `${Math.floor(diffDays / 365)} years ago`;
 }
 
-function formatDuration(duration: string): string {
+export function formatDuration(duration: string): string {
   const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return '0:00';
   
@@ -190,3 +190,5 @@ function formatDuration(duration: string): string {
   }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
+
+
