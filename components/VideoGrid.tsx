@@ -4,15 +4,13 @@ import { fetchInitialVideos, fetchVideos } from '@/lib/api/videos'
 import VideoCard from './VideoCard'
 import { Video } from '@/types/FilterState'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 
-interface VideoGridProps {
-  searchParams: Record<string, string>
-}
-
-export default function VideoGrid({ searchParams }: VideoGridProps) {
+export default function VideoGrid() {
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -20,9 +18,12 @@ export default function VideoGrid({ searchParams }: VideoGridProps) {
         setLoading(true)
         setError(null)
 
-        const data = Object.keys(searchParams).length === 0
+        // Convert URLSearchParams to plain object
+        const paramsObject = Object.fromEntries(searchParams.entries())
+
+        const data = Object.keys(paramsObject).length === 0
           ? await fetchInitialVideos()
-          : await fetchVideos(searchParams)
+          : await fetchVideos(paramsObject)
 
         setVideos(data)
       } catch (err) {
@@ -34,7 +35,12 @@ export default function VideoGrid({ searchParams }: VideoGridProps) {
       }
     }
 
-    loadVideos()
+    // Add debounce to prevent rapid API calls when filters change
+    const debounceTimer = setTimeout(() => {
+      loadVideos()
+    }, 300)
+
+    return () => clearTimeout(debounceTimer)
   }, [searchParams])
 
   if (loading) {
@@ -64,7 +70,7 @@ export default function VideoGrid({ searchParams }: VideoGridProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:w-[100%]">
-      {videos.map((video: any) => (
+      {videos.map((video: Video) => (
         <VideoCard key={video.id} video={video} basePath="videos" />
       ))}
     </div>

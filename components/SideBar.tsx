@@ -1,51 +1,131 @@
 'use client'
 
 import { Listbox, Transition } from '@headlessui/react'
-import { FiChevronDown, FiFilter, FiClock, FiCalendar, FiFilm } from 'react-icons/fi'
+import { 
+  FiChevronDown, 
+  FiFilter, 
+  FiClock, 
+  FiCalendar, 
+  FiFilm, 
+  FiGlobe, 
+  FiMusic, 
+  FiTrendingUp,
+  FiAward,
+  FiMic,
+  FiBook,
+  FiCode,
+  FiCamera,
+  FiHeart,
+  FiCompass,
+  FiDollarSign,
+  FiActivity
+} from 'react-icons/fi'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
 
 const filters = {
   languages: [
-    { id: 1, name: 'English' },
-    { id: 2, name: 'Spanish' },
-    { id: 3, name: 'French' },
-    { id: 4, name: 'Amharic' },
-    { id: 5, name: 'Arabic' },
+    { id: 1, name: 'English', code: 'en' },
+    { id: 2, name: 'Spanish', code: 'es' },
+    { id: 3, name: 'French', code: 'fr' },
+    { id: 4, name: 'German', code: 'de' },
+    { id: 5, name: 'Japanese', code: 'ja' },
+    { id: 6, name: 'Korean', code: 'ko' },
+    { id: 7, name: 'Chinese', code: 'zh' },
+    { id: 8, name: 'Hindi', code: 'hi' },
+    { id: 9, name: 'Arabic', code: 'ar' },
+    { id: 10, name: 'Russian', code: 'ru' },
   ],
-  genres: [
-    { id: 1, name: 'Technology' },
-    { id: 2, name: 'Gaming' },
-    { id: 3, name: 'Music' },
-    { id: 4, name: 'Education' },
-    { id: 5, name: 'Entertainment' },
-    { id: 6, name: 'Sports' },
-    { id: 7, name: 'Cooking' },
-    { id: 8, name: 'Travel' },
-    { id: 9, name: 'Finance' },
-    { id: 10, name: 'Podcast' },
+  categories: [
+    {
+      id: 1,
+      name: 'Entertainment',
+      icon: <FiFilm className="text-gray-500" />,
+      subcategories: [
+        { id: 101, name: 'Movies', code: 'movies' },
+        { id: 102, name: 'TV Shows', code: 'tv-shows' },
+        { id: 103, name: 'Celebrity News', code: 'celebrity' },
+        { id: 104, name: 'Comedy', code: 'comedy' },
+        { id: 105, name: 'Vlog', code: 'vlog' },
+      ]
+    },
+    {
+      id: 2,
+      name: 'Music',
+      icon: <FiMusic className="text-gray-500" />,
+      subcategories: [
+        { id: 201, name: 'Pop', code: 'pop' },
+        { id: 202, name: 'Rock', code: 'rock' },
+        { id: 203, name: 'Hip Hop', code: 'hip-hop' },
+        { id: 204, name: 'Classical', code: 'classical' },
+      ]
+    },
+    {
+      id: 4,
+      name: 'Education',
+      icon: <FiBook className="text-gray-500" />,
+      subcategories: [
+        { id: 401, name: 'Science', code: 'science' },
+        { id: 402, name: 'History', code: 'history' },
+        { id: 403, name: 'Mathematics', code: 'math' },
+        { id: 404, name: 'Language Learning', code: 'language-learning' },
+      ]
+    },
+    {
+      id: 5,
+      name: 'Technology',
+      icon: <FiCode className="text-gray-500" />,
+      subcategories: [
+        { id: 501, name: 'Programming', code: 'programming' },
+        { id: 502, name: 'AI & ML', code: 'ai-ml' },
+        { id: 503, name: 'Gadgets', code: 'gadgets' },
+        { id: 504, name: 'Cybersecurity', code: 'cybersecurity' },
+      ]
+    },
   ],
   durations: [
-    { id: 1, name: 'Short (<4 min)' },
-    { id: 2, name: 'Medium (4-20 min)' },
-    { id: 3, name: 'Long (>20 min)' },
+    { id: 1, name: 'Short (<4 min)', code: 'short' },
+    { id: 2, name: 'Medium (4-20 min)', code: 'medium' },
+    { id: 3, name: 'Long (>20 min)', code: 'long' },
+    { id: 4, name: 'Very Long (>1 hour)', code: 'very-long' },
   ],
   uploadDates: [
-    { id: 1, name: 'Today' },
-    { id: 2, name: 'This week' },
-    { id: 3, name: 'This month' },
-    { id: 4, name: 'This year' },
+    { id: 1, name: 'Last 24 hours', code: 'today' },
+    { id: 2, name: 'This week', code: 'week' },
+    { id: 3, name: 'This month', code: 'month' },
+    { id: 4, name: 'This year', code: 'year' },
+    { id: 5, name: 'All time', code: 'all-time' },
   ],
   qualities: [
-    { id: 1, name: 'All' },
-    { id: 2, name: 'HD' },
-    { id: 3, name: '4K' },
-    { id: 4, name: 'Live' },
+    { id: 1, name: 'All Qualities', code: 'all' },
+    { id: 2, name: 'SD (480p)', code: 'sd' },
+    { id: 3, name: 'HD (720p)', code: 'hd' },
+    { id: 4, name: 'Full HD (1080p)', code: 'full-hd' },
+    { id: 5, name: '4K (2160p)', code: '4k' },
+    { id: 6, name: '8K (4320p)', code: '8k' },
+    { id: 7, name: 'Live Streams', code: 'live' },
   ],
+  sortOptions: [
+    { id: 1, name: 'Most Popular', code: 'popular' },
+    { id: 2, name: 'Most Viewed', code: 'viewed' },
+    { id: 3, name: 'Newest First', code: 'newest' },
+    { id: 4, name: 'Oldest First', code: 'oldest' },
+    { id: 5, name: 'Highest Rated', code: 'rated' },
+    { id: 6, name: 'Most Commented', code: 'commented' },
+  ],
+  contentTypes: [
+    { id: 1, name: 'All Types', code: 'all' },
+    { id: 2, name: 'Videos', code: 'video' },
+    { id: 3, name: 'Shorts', code: 'short' },
+    { id: 4, name: 'Live', code: 'live' },
+    { id: 5, name: 'Premieres', code: 'premiere' },
+  ]
 }
 
 export default function Sidebar() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({})
 
   const handleFilterChange = (filterKey: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -53,7 +133,26 @@ export default function Sidebar() {
     router.push(`?${params.toString()}`, { scroll: false })
   }
 
-  const renderFilter = (label: string, icon: React.ReactNode, paramKey: string, options: { id: number; name: string }[]) => (
+  const toggleCategory = (categoryId: number) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }))
+  }
+
+  const getCurrentSelection = (paramKey: string, options: any[]) => {
+    const paramValue = searchParams.get(paramKey)
+    if (!paramValue) return `Select ${paramKey}`
+    const option = options.find(opt => opt.code === paramValue || opt.name === paramValue)
+    return option ? option.name : `Select ${paramKey}`
+  }
+
+  const renderFilter = (
+    label: string,
+    icon: React.ReactNode,
+    paramKey: string,
+    options: { id: number; name: string; code: string }[]
+  ) => (
     <Listbox
       as="div"
       className="relative"
@@ -69,7 +168,7 @@ export default function Sidebar() {
           <div className="relative">
             <Listbox.Button className="relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-blue sm:text-sm">
               <span className="block truncate">
-                {searchParams.get(paramKey) || `Select ${label.toLowerCase()}`}
+                {getCurrentSelection(paramKey, options)}
               </span>
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                 <FiChevronDown className="h-5 w-5 text-gray-400" />
@@ -86,7 +185,7 @@ export default function Sidebar() {
                 {options.map((option) => (
                   <Listbox.Option
                     key={option.id}
-                    value={option.name}
+                    value={option.code}
                     className={({ active }) =>
                       `relative cursor-default select-none py-2 pl-10 pr-4 ${
                         active ? 'bg-primary-blue-100 text-primary-blue' : 'text-gray-900'
@@ -104,16 +203,67 @@ export default function Sidebar() {
     </Listbox>
   )
 
+  const renderCategoryFilter = () => {
+    return (
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-gray-700 flex items-center gap-1">
+          <FiCompass className="text-gray-500" />
+          Categories
+        </h3>
+        <div className="space-y-1">
+          {filters.categories.map(category => (
+            <div key={category.id} className="border rounded-md overflow-hidden">
+              <button
+                onClick={() => toggleCategory(category.id)}
+                className="w-full flex items-center justify-between p-2 text-left text-sm font-medium hover:bg-gray-50"
+              >
+                <div className="flex items-center gap-2">
+                  {category.icon}
+                  <span>{category.name}</span>
+                </div>
+                <FiChevronDown 
+                  className={`h-4 w-4 transition-transform ${
+                    expandedCategories[category.id] ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              
+              {expandedCategories[category.id] && (
+                <div className="pl-8 pr-2 py-1 space-y-1 bg-gray-50">
+                  {category.subcategories.map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => handleFilterChange('category', sub.code)}
+                      className={`w-full text-left p-1.5 text-xs rounded ${
+                        searchParams.get('category') === sub.code 
+                          ? 'bg-primary-blue-100 text-primary-blue' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      {sub.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <aside className="w-74 h-screen sticky left-0 bg-white shadow-sm p-6">
+    <aside className="w-80 h-screen sticky left-0 bg-white shadow-sm p-6 overflow-y-auto">
       <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
         <FiFilter className="text-primary-blue" />
         Filters
       </h2>
 
       <div className="space-y-6">
-        {renderFilter('Language', null, 'language', filters.languages)}
-        {renderFilter('Genre', null, 'genre', filters.genres)}
+        {renderFilter('Sort By', <FiTrendingUp className="text-gray-500" />, 'sort', filters.sortOptions)}
+        {renderFilter('Content Type', <FiCamera className="text-gray-500" />, 'type', filters.contentTypes)}
+        {renderCategoryFilter()}
+        {renderFilter('Language', <FiGlobe className="text-gray-500" />, 'language', filters.languages)}
         {renderFilter('Duration', <FiClock className="text-gray-500" />, 'duration', filters.durations)}
         {renderFilter('Upload Date', <FiCalendar className="text-gray-500" />, 'uploadDate', filters.uploadDates)}
         {renderFilter('Quality', <FiFilm className="text-gray-500" />, 'quality', filters.qualities)}
