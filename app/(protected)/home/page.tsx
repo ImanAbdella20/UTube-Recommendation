@@ -20,7 +20,7 @@ export default function HomePage({
     <div className="flex flex-col h-screen ">
       
       {/* Main content area with sidebar and video grid */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden ">
         {/* Sidebar - fixed width, scrollable */}
         <div className="hidden lg:block lg:w-95  bg-white border-r border-gray-200 overflow-y-auto pl-20">
           <SideBar />

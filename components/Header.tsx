@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { redirect, usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiUser, FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useVideoStore } from '@/store/videoStore';
+import { FiLogOut } from 'react-icons/fi';
+import { LogOut } from "lucide-react";
+
 
 const Header = () => {
   const pathname = usePathname();
@@ -37,8 +40,12 @@ const Header = () => {
     setShowFavorites(false);
   };
 
+  const handleLogout =()=>{
+    redirect('/login');
+  }
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-10">
+    <header className="bg-gradient-to-br from-indigo-50 to-blue-100 shadow-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-8">
           <Image
@@ -86,6 +93,7 @@ const Header = () => {
             onClick={handleFavoriteClick}
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors relative"
             aria-label={showFavorites ? "Hide favorites" : "Show favorites"}
+             title='Favorites'
           >
             <FiHeart className={`w-5 h-5 ${favorites.length > 0 ? 'text-red-500' : ''}`} />
             {favorites.length > 0 && (
@@ -97,6 +105,7 @@ const Header = () => {
             onClick={handleBookmarkClick}
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors relative"
             aria-label={showBookmarks ? "Hide bookmarks" : "Show bookmarks"}
+             title='Saved'
           >
             <FiBookmark className={`w-5 h-5 ${bookmarks.length > 0 ? 'text-blue-500' : ''}`} />
             {bookmarks.length > 0 && (
@@ -107,8 +116,10 @@ const Header = () => {
           <button
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors"
             aria-label="User profile"
+            title='Log Out'
+            onClick={handleLogout}
           >
-            <FiUser className="w-5 h-5" />
+             <LogOut className="w-5 h-5" />
           </button>
 
           {/* Bookmarks Dropdown */}
