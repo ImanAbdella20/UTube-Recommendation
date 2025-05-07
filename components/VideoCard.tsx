@@ -6,11 +6,16 @@ export default function VideoCard({ video, basePath }: { video: any; basePath: s
     <Link href={`/${basePath}/${video.id}`} className="group">
       <div className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
         <div className="relative aspect-video">
-          <Image
+        <Image
             src={video.thumbnail}
             alt={video.title}
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover group-hover:scale-105 transition-transform"
+            unoptimized={true}
+            loading="eager"
+            placeholder="blur"
+            blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YxZjFmMSIvPjwvc3ZnPg=="
           />
         </div>
         <div className="p-4">

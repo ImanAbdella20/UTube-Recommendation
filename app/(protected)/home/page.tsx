@@ -1,9 +1,9 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
 import SideBar from '@/components/SideBar';
 import VideoGrid from '@/components/VideoGrid';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function HomePage({
   searchParams,
@@ -17,6 +17,7 @@ export default function HomePage({
   }, [router]);
 
   return (
+    <ProtectedRoute>
     <div className="flex flex-col h-screen ">
       
       {/* Main content area with sidebar and video grid */}
@@ -29,9 +30,10 @@ export default function HomePage({
         {/* Main content - scrollable */}
         <main className="flex-1 overflow-y-auto p-4  pr-30 pl-10">
           <h1 className="text-2xl font-bold mb-6">Recommended Videos</h1>
-          <VideoGrid searchParams={searchParams} />
+          <VideoGrid  />
         </main>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useVideoStore } from '@/store/videoStore';
 import { LogOut } from "lucide-react";
+import { useAuth } from '@/context/AuthContext';
 
 const Header = () => {
   const pathname = usePathname();
@@ -15,6 +16,7 @@ const Header = () => {
   const [showFavorites, setShowFavorites] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { bookmarks, favorites, removeBookmark, removeFavorite } = useVideoStore();
+  const {signOut} = useAuth();
 
   const isActive = (path: string) => {
     if (path === '/videos') {
@@ -39,10 +41,6 @@ const Header = () => {
     setShowFavorites(false);
   };
 
-  const handleLogout = () => {
-    redirect('/login');
-  };
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -62,6 +60,8 @@ const Header = () => {
               width={130}
               height={40}
               className="object-contain"
+              style={{ width: 'auto', height: 'auto' }}
+              priority={true}  
             />
           </Link>
 
@@ -127,7 +127,7 @@ const Header = () => {
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors"
             aria-label="User profile"
             title='Log Out'
-            onClick={handleLogout}
+            onClick={signOut}
           >
             <LogOut className="w-5 h-5" />
           </button>

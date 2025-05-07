@@ -1,9 +1,10 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { redirect, useRouter } from 'next/navigation';
 import { FormEvent, ChangeEvent, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMail, FiLock, FiUser, FiArrowRight, FiLoader, FiAlertCircle } from 'react-icons/fi';
+import { FiMail, FiLock, FiUser, FiArrowRight, FiLoader, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
+import { useAuth } from '@/context/AuthContext';
 
 interface FormData {
   email: string;
@@ -11,61 +12,130 @@ interface FormData {
   name: string;
 }
 
+interface AuthError {
+  title: string;
+  message: string;
+  type: 'error' | 'success';
+}
+
+const getFirebaseError = (error: any): AuthError => {
+  switch (error.code) {
+    case 'auth/invalid-email':
+      return {
+        title: 'Invalid Email',
+        message: 'Please enter a valid email address',
+        type: 'error'
+      };
+    case 'auth/user-disabled':
+      return {
+        title: 'Account Disabled',
+        message: 'This account has been disabled',
+        type: 'error'
+      };
+    case 'auth/user-not-found':
+      return {
+        title: 'Account Not Found',
+        message: 'No account exists with this email',
+        type: 'error'
+      };
+    case 'auth/wrong-password':
+      return {
+        title: 'Incorrect Password',
+        message: 'The password you entered is incorrect',
+        type: 'error'
+      };
+    case 'auth/email-already-in-use':
+      return {
+        title: 'Email In Use',
+        message: 'This email is already registered',
+        type: 'error'
+      };
+    case 'auth/weak-password':
+      return {
+        title: 'Weak Password',
+        message: 'Password should be at least 6 characters',
+        type: 'error'
+      };
+    case 'auth/popup-closed-by-user':
+      return {
+        title: 'Sign In Cancelled',
+        message: 'You closed the Google sign-in popup',
+        type: 'error'
+      };
+    case 'auth/too-many-requests':
+      return {
+        title: 'Too Many Attempts',
+        message: 'Access temporarily disabled due to many failed attempts',
+        type: 'error'
+      };
+    default:
+      return {
+        title: 'Authentication Error',
+        message: 'An unknown error occurred',
+        type: 'error'
+      };
+  }
+};
+
 export default function AuthPage() {
   const router = useRouter();
+  const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
     name: ''
   });
-  const [error, setError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<AuthError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-    return () => setIsMounted(false);
-  }, []);
+    if (user && !authLoading) {
+      router.push('/home');
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!isMounted) return;
-    
     setIsLoading(true);
-    setError(null);
+    setAuthError(null);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Validate form data
       if (!formData.email || !formData.password || (!isLogin && !formData.name)) {
-        throw new Error('Please fill in all fields');
+        throw { code: 'validation/empty-fields', message: 'Please fill in all fields' };
       }
-      
-      // Successful auth
-      router.push('/home');
+
+      if (isLogin) {
+        await signInWithEmail(formData.email, formData.password);
+        redirect('/home');
+      } else {
+        await signUpWithEmail(formData.email, formData.password, formData.name);
+        setAuthError({
+          title: 'Account Created!',
+          message: 'Your account has been successfully created',
+          type: 'success'
+        });
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      const error = getFirebaseError(err);
+      setAuthError(error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleAuth = async () => {
-    if (!isMounted) return;
-    
     setIsGoogleLoading(true);
-    setError(null);
+    setAuthError(null);
 
     try {
-      // Simulate Google auth
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      router.push('/home');
+      console.log('couldnt find anything');
+      await signInWithGoogle();
+      redirect('/home');
     } catch (err) {
-      setError('Google authentication failed');
+      const error = getFirebaseError(err);
+      setAuthError(error);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -82,7 +152,7 @@ export default function AuthPage() {
   const toggleAuthMode = () => {
     if (isLoading || isGoogleLoading) return;
     setIsLogin(!isLogin);
-    setError(null);
+    setAuthError(null);
   };
 
   return (
@@ -106,15 +176,29 @@ export default function AuthPage() {
           {/* Form container */}
           <div className="p-6 sm:p-8">
             <AnimatePresence mode="wait">
-              {error && (
+              {authError && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center"
+                  transition={{ duration: 0.2 }}
+                  className={`mb-4 p-4 rounded-lg border ${
+                    authError.type === 'error'
+                      ? 'bg-red-50 border-red-200 text-red-600'
+                      : 'bg-green-50 border-green-200 text-green-600'
+                  }`}
                 >
-                  <FiAlertCircle className="w-5 h-5 mr-2" />
-                  {error}
+                  <div className="flex items-start">
+                    {authError.type === 'error' ? (
+                      <FiAlertTriangle className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <FiCheckCircle className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div>
+                      <h3 className="font-medium">{authError.title}</h3>
+                      <p className="text-sm mt-1">{authError.message}</p>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -125,11 +209,11 @@ export default function AuthPage() {
               disabled={isGoogleLoading || isLoading}
               whileHover={!(isGoogleLoading || isLoading) ? { scale: 1.02 } : {}}
               whileTap={!(isGoogleLoading || isLoading) ? { scale: 0.98 } : {}}
-              className={`w-full flex items-center justify-center py-3 px-4 rounded-lg border border-gray-200 mb-4 transition-all ${
+              className={`w-full flex items-center justify-center py-3 px-4 rounded-lg border ${
                 isGoogleLoading || isLoading
-                  ? 'bg-gray-100 cursor-not-allowed'
-                  : 'bg-white hover:bg-gray-50'
-              }`}
+                  ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
+                  : 'bg-white border-gray-200 hover:bg-gray-50'
+              } transition-all`}
             >
               {isGoogleLoading ? (
                 <FiLoader className="animate-spin mr-2 text-gray-600" />
@@ -235,7 +319,7 @@ export default function AuthPage() {
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-4 text-center">
             <p className="text-gray-500 text-sm">
-              {isLogin ? "Don't have an account yet?" : 'Already registered?'}{' '}
+              {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
               <button
                 onClick={toggleAuthMode}
                 disabled={isLoading || isGoogleLoading}
