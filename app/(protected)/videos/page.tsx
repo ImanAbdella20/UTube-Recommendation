@@ -12,7 +12,7 @@ const VideosPage = () => {
       </p>
       <p className="text-lg text-gray-600 mt-4 md:text-xl">
         <Link
-          href="/"
+          href="/home"
           className="text-primary-blue hover:text-secondary-purple font-semibold transition-colors"
         >
           Go back to the Home page

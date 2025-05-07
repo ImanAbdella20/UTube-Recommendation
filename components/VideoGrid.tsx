@@ -53,8 +53,15 @@ export default function VideoGrid() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-red-500">
-        <h3 className="text-lg font-medium">{error}</h3>
+      <div className="p-8 text-red-500 text-center">
+        <h1 className="text-2xl font-bold">Error</h1>
+        <p>please connect to the internet!</p>
+          <button
+            onClick={() => window.location.reload()}
+            className=" bg-gray-200 text-black px-4 py-2 rounded transition"
+          >
+            Retry
+          </button>
       </div>
     )
   }

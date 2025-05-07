@@ -2,19 +2,18 @@
 
 import React, { useState } from 'react';
 import { redirect, usePathname, useRouter } from 'next/navigation';
-import { FiSearch, FiUser, FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useVideoStore } from '@/store/videoStore';
-import { FiLogOut } from 'react-icons/fi';
 import { LogOut } from "lucide-react";
-
 
 const Header = () => {
   const pathname = usePathname();
   const router = useRouter();
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { bookmarks, favorites, removeBookmark, removeFavorite } = useVideoStore();
 
   const isActive = (path: string) => {
@@ -40,25 +39,35 @@ const Header = () => {
     setShowFavorites(false);
   };
 
-  const handleLogout =()=>{
+  const handleLogout = () => {
     redirect('/login');
-  }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <header className="bg-gradient-to-br from-indigo-50 to-blue-100 shadow-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-8">
-          <Image
-            src="/images/logo-primary-removebg-preview.png"
-            alt="Logo"
-            width={130}
-            height={40}
-            className="object-contain"
-          />
+          <Link href="/">
+            <Image
+              src="/images/logo-primary-removebg-preview.png"
+              alt="Logo"
+              width={130}
+              height={40}
+              className="object-contain"
+            />
+          </Link>
 
           <nav className="hidden md:flex space-x-6">
             <Link
-              href="/"
+              href="/home"
               className={`font-inter font-medium ${isActive('/')
                   ? 'text-primary-blue'
                   : 'text-black-100 hover:text-primary-blue'
@@ -66,7 +75,6 @@ const Header = () => {
             >
               Home
             </Link>
-
             <Link
               href="/videos"
               className={`font-inter font-medium ${isActive('/videos')
@@ -80,20 +88,22 @@ const Header = () => {
         </div>
 
         <div className="flex items-center space-x-4 relative">
-          <div className="relative hidden sm:block">
+          <form onSubmit={handleSearch} className="relative hidden sm:block">
             <input
               type="text"
               placeholder="Search videos..."
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent font-inter"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent font-inter w-64"
             />
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-grey" />
-          </div>
+          </form>
 
           <button
             onClick={handleFavoriteClick}
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors relative"
             aria-label={showFavorites ? "Hide favorites" : "Show favorites"}
-             title='Favorites'
+            title='Favorites'
           >
             <FiHeart className={`w-5 h-5 ${favorites.length > 0 ? 'text-red-500' : ''}`} />
             {favorites.length > 0 && (
@@ -105,7 +115,7 @@ const Header = () => {
             onClick={handleBookmarkClick}
             className="p-2 rounded-full hover:bg-light-white-100 text-grey hover:text-primary-blue transition-colors relative"
             aria-label={showBookmarks ? "Hide bookmarks" : "Show bookmarks"}
-             title='Saved'
+            title='Saved'
           >
             <FiBookmark className={`w-5 h-5 ${bookmarks.length > 0 ? 'text-blue-500' : ''}`} />
             {bookmarks.length > 0 && (
@@ -119,7 +129,7 @@ const Header = () => {
             title='Log Out'
             onClick={handleLogout}
           >
-             <LogOut className="w-5 h-5" />
+            <LogOut className="w-5 h-5" />
           </button>
 
           {/* Bookmarks Dropdown */}
@@ -165,6 +175,8 @@ const Header = () => {
               </div>
             </div>
           )}
+
+          {/* Favorites Dropdown */}
           {showFavorites && (
             <div className="absolute right-0 top-12 w-64 bg-white shadow-lg rounded-lg z-20 flex flex-col max-h-[300px] overflow-hidden">
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -207,7 +219,6 @@ const Header = () => {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </header>
