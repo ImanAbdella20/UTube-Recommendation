@@ -5,16 +5,7 @@ import SideBar from '@/components/SideBar';
 import VideoGrid from '@/components/VideoGrid';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
-export default function HomePage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
-}) {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Add any auth checks here if needed
-  }, [router]);
+export default function HomePage(){
 
   return (
     <ProtectedRoute>

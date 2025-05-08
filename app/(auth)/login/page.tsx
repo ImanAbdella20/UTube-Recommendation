@@ -130,7 +130,6 @@ export default function AuthPage() {
     setAuthError(null);
 
     try {
-      console.log('couldnt find anything');
       await signInWithGoogle();
       redirect('/home');
     } catch (err) {
