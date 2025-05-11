@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
-import { formatViews, formatPublishedAt } from '@/lib/api/videos';
+import { formatViews, formatPublishedAt, fetchInitialVideos } from '@/lib/api/videos';
 import { useVideoStore } from '@/store/videoStore';
 import VideoCard from '@/components/VideoCard';
 import { Video } from '@/types/FilterState';
@@ -21,17 +21,19 @@ interface VideoDetails {
 }
 
 export default function VideoPage() {
-  const params = useParams();
   const router = useRouter();
+  const params = useParams();
   const { id } = params;
 
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
+  const [recommendedVideos, setRecommendedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
   const [newNote, setNewNote] = useState('');
   const [showAllNotes, setShowAllNotes] = useState(false);
-  const [recommended, setRecommended] = useState<Video[]>([]);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   const {
     bookmarks,
@@ -42,25 +44,48 @@ export default function VideoPage() {
     removeFavorite,
   } = useVideoStore();
 
+  // Load notes from localStorage when component mounts
+  useEffect(() => {
+    if (!id) return;
+    
+    const savedNotes = localStorage.getItem(`video_notes_${id}`);
+    if (savedNotes) {
+      setNotes(JSON.parse(savedNotes));
+    }
+  }, [id]);
+
+  // Save notes to localStorage whenever they change
+  useEffect(() => {
+    if (!id) return;
+    localStorage.setItem(`video_notes_${id}`, JSON.stringify(notes));
+  }, [notes, id]);
+
+  // Load video details and recommendations
   useEffect(() => {
     if (!id) return;
 
-    const fetchVideoDetails = async () => {
+    const fetchVideoData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(
+        // Check for cached video in localStorage first
+        const cached = localStorage.getItem(`video_${id}`);
+        if (cached) {
+          setVideoDetails(JSON.parse(cached));
+        }
+
+        // Then fetch from API
+        const res = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
         );
-
-        if (!response.ok) throw new Error('Failed to fetch video details');
-
-        const data = await response.json();
-        if (!data.items || data.items.length === 0) throw new Error('Video not found');
+        
+        if (!res.ok) throw new Error('Failed to fetch video details');
+        const data = await res.json();
+        if (!data.items?.length) throw new Error('Video not found');
 
         const item = data.items[0];
-        const details = {
+        const details: VideoDetails = {
           id: item.id,
           title: item.snippet.title,
           description: item.snippet.description,
@@ -72,22 +97,44 @@ export default function VideoPage() {
         };
 
         setVideoDetails(details);
+        localStorage.setItem(`video_${id}`, JSON.stringify(details));
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        setError(err instanceof Error ? err.message : 'Unexpected error');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchVideoDetails();
+    const fetchRecommendations = async () => {
+      try {
+        setRecommendedLoading(true);
+        const allVideos = await fetchInitialVideos();
+        const filteredVideos = allVideos.filter((v) => v.id !== id).slice(0, 6);
+        setRecommendedVideos(filteredVideos);
+        localStorage.setItem(`recommended_${id}`, JSON.stringify(filteredVideos));
+      } catch (err) {
+        // Fallback to localStorage if API fails
+        const cached = localStorage.getItem(`recommended_${id}`);
+        if (cached) {
+          setRecommendedVideos(JSON.parse(cached));
+        }
+      } finally {
+        setRecommendedLoading(false);
+      }
+    };
+
+    // Check for cached recommendations
+    const cachedRecs = localStorage.getItem(`recommended_${id}`);
+    if (cachedRecs) {
+      setRecommendedVideos(JSON.parse(cachedRecs));
+    } else {
+      fetchRecommendations();
+    }
+
+    fetchVideoData();
   }, [id]);
 
-  const handleBookmark = () => {
-    if (!videoDetails) return;
-    bookmarks.includes(videoDetails.id)
-      ? removeBookmark(videoDetails.id)
-      : addBookmark(videoDetails.id);
-  };
+  const getFirstThreeLines = (text: string) => text.split('\n').slice(0, 3).join('\n');
 
   const handleFavorite = () => {
     if (!videoDetails) return;
@@ -96,143 +143,172 @@ export default function VideoPage() {
       : addFavorite(videoDetails.id);
   };
 
-  if (!id) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold">Welcome to the Video Page</h1>
-        <p className="text-lg text-gray-600">Select a video to view its details.</p>
-      </div>
-    );
-  }
+  const handleBookmark = () => {
+    if (!videoDetails) return;
+    bookmarks.includes(videoDetails.id)
+      ? removeBookmark(videoDetails.id)
+      : addBookmark(videoDetails.id);
+  };
+
+  const addNewNote = () => {
+    if (newNote.trim()) {
+      const updatedNotes = [...notes, newNote.trim()];
+      setNotes(updatedNotes);
+      setNewNote('');
+    }
+  };
+
+  if (!id) return <div className="p-8">Invalid Video</div>;
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 text-red-500 text-center">
-        <h1 className="text-2xl font-bold">Error</h1>
-        <p>please connect to the internet!</p>
-          <button
-            onClick={() => window.location.reload()}
-            className=" bg-gray-200 text-black px-4 py-2 rounded transition"
-          >
-            Retry
-          </button>
+      <div className="text-center text-red-500 py-20">
+        <h2 className="text-xl font-bold">Error</h2>
+        <p>{error}</p>
+        <button
+          onClick={() => router.refresh()}
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
-  if (!videoDetails) {
-    return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold">Video not found</h1>
-      </div>
-    );
-  }
+  if (!videoDetails) return <div className="p-8">Video not found</div>;
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex flex-col lg:flex-row gap-8">
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col lg:flex-row gap-6">
         <div className="lg:w-2/3">
-          <div className="relative bg-black rounded-lg overflow-hidden min-h-[280px]">
+          <div className="aspect-video bg-black rounded-lg overflow-hidden">
             <iframe
-              className="absolute top-0 left-0 w-full h-full"
-              src={`https://www.youtube.com/embed/${id}?autoplay=1`}
+              className="w-full h-full"
+              src={`https://www.youtube.com/embed/${videoDetails.id}?autoplay=1`}
               title={videoDetails.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-            ></iframe>
+            />
           </div>
 
-          <div className="mt-6">
-            <h1 className="text-2xl font-bold">{videoDetails.title}</h1>
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center space-x-4 text-gray-600">
-                <span>{formatViews(videoDetails.viewCount)} views</span>
-                <span>{formatPublishedAt(videoDetails.publishedAt)}</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button onClick={handleFavorite} className="hover:text-red-600">
-                  <FiHeart className="w-5 h-5" />
-                </button>
-                <button onClick={handleBookmark} className="hover:text-blue-600">
-                  <FiBookmark className="w-5 h-5" />
-                </button>
-              </div>
+          <h1 className="text-2xl font-bold mt-4">{videoDetails.title}</h1>
+          <div className="text-gray-600 mt-2 flex justify-between">
+            <div>
+              {formatViews(videoDetails.viewCount)} • {formatPublishedAt(videoDetails.publishedAt)}
             </div>
-
-            <div className="flex items-center mt-4 p-4 bg-gray-50 rounded-lg">
-              <Image
-                src={videoDetails.thumbnail}
-                alt={videoDetails.channelTitle}
-                width={48}
-                height={48}
-                className="rounded-full"
-              />
-              <div className="ml-3">
-                <h2 className="font-medium">{videoDetails.channelTitle}</h2>
-                <p className="text-sm text-gray-500">1.2M subscribers</p>
-              </div>
-              <button className="ml-auto px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700">
-                Subscribe
+            <div className="flex gap-3">
+              <button onClick={handleFavorite}>
+                <FiHeart className={`w-5 h-5 ${favorites.includes(videoDetails.id) ? 'text-red-600' : ''}`} />
+              </button>
+              <button onClick={handleBookmark}>
+                <FiBookmark className={`w-5 h-5 ${bookmarks.includes(videoDetails.id) ? 'text-blue-600' : ''}`} />
               </button>
             </div>
-
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="whitespace-pre-line">{videoDetails.description}</p>
-            </div>
           </div>
 
-          {recommended.length > 0 && (
-            <div className="mt-10">
-              <h2 className="text-xl font-semibold mb-4">Recommended Videos</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommended.map((video) => (
-                  <VideoCard key={video.id} video={video} basePath="videos" />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Notes Panel */}
-        <div className="lg:w-1/3">
-          <h2 className="text-xl font-bold mb-4">Take Notes From The Video</h2>
-          <div className="space-y-4">
-            <textarea
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Write a note..."
-              className="w-full border p-2 rounded-lg"
+          <div className="mt-4 flex items-center gap-4 p-4 bg-gray-100 rounded-lg">
+            <Image
+              src={videoDetails.thumbnail}
+              alt={videoDetails.channelTitle}
+              width={48}
+              height={48}
+              className="rounded-full"
             />
-            <button
-              onClick={() => {
-                if (newNote.trim()) {
-                  setNotes([...notes, newNote.trim()]);
-                  setNewNote('');
-                }
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Add Note
+            <div>
+              <h2 className="font-semibold">{videoDetails.channelTitle}</h2>
+              <p className="text-sm text-gray-500">1.2M subscribers</p>
+            </div>
+            <button className="ml-auto bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700">
+              Subscribe
             </button>
           </div>
 
-          <div className="mt-6 space-y-2">
-            {notes.map((note, index) => (
-              <div key={index} className="flex justify-between items-center bg-gray-100 p-2 rounded">
-                <span>{note}</span>
-                <button onClick={() => setNotes(notes.filter((_, i) => i !== index))}>
-                  <FiTrash2 className="text-red-500" />
-                </button>
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <p className="whitespace-pre-line">
+              {showFullDescription ? videoDetails.description : getFirstThreeLines(videoDetails.description)}
+            </p>
+            {videoDetails.description.split('\n').length > 3 && (
+              <button
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className="text-blue-600 mt-2 hover:underline"
+              >
+                {showFullDescription ? 'Show less' : 'Show more'}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-10">
+            <h2 className="text-xl font-semibold mb-4">Recommended Videos</h2>
+            {recommendedLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="animate-pulse bg-gray-200 rounded-lg aspect-video"></div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendedVideos.map((video) => (
+                  <VideoCard key={video.id} video={video} basePath="videos" />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:w-1/3">
+          <div className="sticky top-4">
+            <h2 className="text-xl font-bold mb-4">Video Notes</h2>
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addNewNote()}
+              placeholder="Write a note..."
+              className="w-full border p-2 rounded-lg min-h-[100px]"
+            />
+            <button
+              onClick={addNewNote}
+              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              Add Note
+            </button>
+
+            <div className="mt-6">
+              <h3 className="font-medium mb-2">Your Notes ({notes.length})</h3>
+              {notes.length === 0 ? (
+                <p className="text-gray-500">No notes yet</p>
+              ) : (
+                notes.slice(0, showAllNotes ? notes.length : 3).map((note, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center bg-gray-100 p-3 rounded-lg mb-2"
+                  >
+                    <span>{note}</span>
+                    <button
+                      onClick={() => setNotes(notes.filter((_, i) => i !== index))}
+                      className="hover:text-red-600"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))
+              )}
+              {notes.length > 3 && (
+                <button
+                  onClick={() => setShowAllNotes(!showAllNotes)}
+                  className="text-blue-600 mt-2 hover:underline text-sm"
+                >
+                  {showAllNotes ? 'Show less' : 'Show all'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
