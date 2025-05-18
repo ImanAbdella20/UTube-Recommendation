@@ -8,6 +8,7 @@ interface VideoStore {
   removeBookmark: (thumb: string) => void;
   addFavorite: (thumb: string) => void;
   removeFavorite: (thumb: string) => void;
+  
 }
 
 export const useVideoStore = create<VideoStore>()(

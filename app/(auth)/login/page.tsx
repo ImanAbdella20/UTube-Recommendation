@@ -1,5 +1,5 @@
 'use client';
-import { redirect, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { FormEvent, ChangeEvent, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMail, FiLock, FiUser, FiArrowRight, FiLoader, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
@@ -68,10 +68,29 @@ const getFirebaseError = (error: any): AuthError => {
         message: 'Access temporarily disabled due to many failed attempts',
         type: 'error'
       };
+    case 'auth/account-exists-with-different-credential':
+      return {
+        title: 'Account Exists',
+        message: 'An account already exists with the same email but different sign-in method',
+        type: 'error'
+      };
+    case 'auth/popup-blocked':
+      return {
+        title: 'Popup Blocked',
+        message: 'Please allow popups for this site to sign in with Google',
+        type: 'error'
+      };
+    case 'auth/network-request-failed':
+      return {
+        title: 'Network Error',
+        message: 'Please check your internet connection and try again',
+        type: 'error'
+      };
     default:
+      console.error('Unhandled auth error:', error);
       return {
         title: 'Authentication Error',
-        message: 'An unknown error occurred',
+        message: error.message || 'An unknown error occurred',
         type: 'error'
       };
   }
@@ -108,7 +127,6 @@ export default function AuthPage() {
 
       if (isLogin) {
         await signInWithEmail(formData.email, formData.password);
-        redirect('/home');
       } else {
         await signUpWithEmail(formData.email, formData.password, formData.name);
         setAuthError({
@@ -131,7 +149,7 @@ export default function AuthPage() {
 
     try {
       await signInWithGoogle();
-      redirect('/home');
+      // No need to redirect here - the useEffect will handle it when user changes
     } catch (err) {
       const error = getFirebaseError(err);
       setAuthError(error);
@@ -161,7 +179,7 @@ export default function AuthPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-center">
             <h1 className="text-2xl font-bold text-white">
@@ -212,7 +230,7 @@ export default function AuthPage() {
                 isGoogleLoading || isLoading
                   ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
                   : 'bg-white border-gray-200 hover:bg-gray-50'
-              } transition-all`}
+              } transition-all mb-6`}
             >
               {isGoogleLoading ? (
                 <FiLoader className="animate-spin mr-2 text-gray-600" />

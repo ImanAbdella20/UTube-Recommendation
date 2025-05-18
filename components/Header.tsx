@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState } from 'react';
-import { redirect, usePathname, useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useVideoStore } from '@/store/videoStore';
 import { LogOut } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
+
+interface VideoInfo {
+  id: string;
+  title: string;
+  thumbnail: string;
+}
 
 const Header = () => {
   const pathname = usePathname();
@@ -16,7 +22,29 @@ const Header = () => {
   const [showFavorites, setShowFavorites] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { bookmarks, favorites, removeBookmark, removeFavorite } = useVideoStore();
-  const {signOut} = useAuth();
+  const { signOut } = useAuth();
+  const [bookmarkVideos, setBookmarkVideos] = useState<VideoInfo[]>([]);
+  const [favoriteVideos, setFavoriteVideos] = useState<VideoInfo[]>([]);
+
+  // Fetch video details for bookmarks and favorites
+  useEffect(() => {
+    const fetchVideoDetails = async (ids: string[]) => {
+      // In a real app, you would fetch these from your API
+      // This is a mock implementation
+      return ids.map(id => ({
+        id,
+        title: `Video ${id}`,
+        thumbnail: `https://i.ytimg.com/vi/${id}/default.jpg`
+      }));
+    };
+
+    if (showBookmarks && bookmarks.length > 0) {
+      fetchVideoDetails(bookmarks).then(setBookmarkVideos);
+    }
+    if (showFavorites && favorites.length > 0) {
+      fetchVideoDetails(favorites).then(setFavoriteVideos);
+    }
+  }, [showBookmarks, showFavorites, bookmarks, favorites]);
 
   const isActive = (path: string) => {
     if (path === '/videos') {
@@ -48,6 +76,35 @@ const Header = () => {
       setSearchQuery('');
     }
   };
+
+  const renderVideoItem = (video: VideoInfo, isBookmark: boolean) => (
+    <div
+      key={video.id}
+      onClick={() => navigateToVideo(video.id)}
+      className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+    >
+      <div className="flex items-center min-w-0">
+        <div className="w-10 h-8 rounded mr-3 flex-shrink-0 overflow-hidden">
+          <img 
+            src={video.thumbnail} 
+            alt={video.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <span className="text-sm truncate">{video.title}</span>
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          isBookmark ? removeBookmark(video.id) : removeFavorite(video.id);
+        }}
+        className="text-gray-400 hover:text-red-500 p-1 ml-2"
+        aria-label={`Remove ${video.title} from ${isBookmark ? 'bookmarks' : 'favorites'}`}
+      >
+        <FiTrash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
 
   return (
     <header className="bg-gradient-to-br from-indigo-50 to-blue-100 shadow-sm sticky top-0 z-10">
@@ -146,31 +203,12 @@ const Header = () => {
                 </button>
               </div>
               <div className="max-h-[180px] overflow-y-auto flex-1">
-                {bookmarks.length > 0 ? (
-                  bookmarks.map((id) => (
-                    <div
-                      key={id}
-                      onClick={() => navigateToVideo(id)}
-                      className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-                    >
-                      <div className="flex items-center min-w-0">
-                        <div className="w-10 h-8 bg-gray-200 rounded mr-3 flex-shrink-0"></div>
-                        <span className="text-sm truncate">Video {id}</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeBookmark(id);
-                        }}
-                        className="text-gray-400 hover:text-red-500 p-1 ml-2"
-                        aria-label={`Remove video ${id} from bookmarks`}
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                {bookmarkVideos.length > 0 ? (
+                  bookmarkVideos.map((video) => renderVideoItem(video, true))
                 ) : (
-                  <div className="p-4 text-center text-gray-500">No saved videos</div>
+                  <div className="p-4 text-center text-gray-500">
+                    {bookmarks.length > 0 ? 'Loading...' : 'No saved videos'}
+                  </div>
                 )}
               </div>
             </div>
@@ -190,31 +228,12 @@ const Header = () => {
                 </button>
               </div>
               <div className="max-h-[180px] overflow-y-auto flex-1">
-                {favorites.length > 0 ? (
-                  favorites.map((id) => (
-                    <div
-                      key={id}
-                      onClick={() => navigateToVideo(id)}
-                      className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-                    >
-                      <div className="flex items-center min-w-0">
-                        <div className="w-10 h-8 bg-gray-200 rounded mr-3 flex-shrink-0"></div>
-                        <span className="text-sm truncate">Video {id}</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFavorite(id);
-                        }}
-                        className="text-gray-400 hover:text-red-500 p-1 ml-2"
-                        aria-label={`Remove video ${id} from favorites`}
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                {favoriteVideos.length > 0 ? (
+                  favoriteVideos.map((video) => renderVideoItem(video, false))
                 ) : (
-                  <div className="p-4 text-center text-gray-500">No favorite videos</div>
+                  <div className="p-4 text-center text-gray-500">
+                    {favorites.length > 0 ? 'Loading...' : 'No favorite videos'}
+                  </div>
                 )}
               </div>
             </div>
