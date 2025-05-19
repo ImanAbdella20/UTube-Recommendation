@@ -25,6 +25,9 @@ export default function VideoPage() {
   const params = useParams();
   const { id } = params;
 
+  // *** HARD-CODED USER ID FOR DEMO, replace with your auth user id ***
+  const userId = 'currentUserId123'; // Replace with actual user ID from auth/session
+
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,18 +39,22 @@ export default function VideoPage() {
   const [showFullDescription, setShowFullDescription] = useState(false);
 
   const {
-    bookmarks,
-    favorites,
+    getUserBookmarks,
+    getUserFavorites,
     addBookmark,
     removeBookmark,
     addFavorite,
     removeFavorite,
   } = useVideoStore();
 
+  // Get user-specific bookmarks and favorites arrays
+  const bookmarks = getUserBookmarks(userId);
+  const favorites = getUserFavorites(userId);
+
   // Load notes from localStorage when component mounts
   useEffect(() => {
     if (!id) return;
-    
+
     const savedNotes = localStorage.getItem(`video_notes_${id}`);
     if (savedNotes) {
       setNotes(JSON.parse(savedNotes));
@@ -69,17 +76,15 @@ export default function VideoPage() {
         setLoading(true);
         setError(null);
 
-        // Check for cached video in localStorage first
         const cached = localStorage.getItem(`video_${id}`);
         if (cached) {
           setVideoDetails(JSON.parse(cached));
         }
 
-        // Then fetch from API
         const res = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${id}&key=${process.env.NEXT_PUBLIC_YOUTUBE_API_KEY}`
         );
-        
+
         if (!res.ok) throw new Error('Failed to fetch video details');
         const data = await res.json();
         if (!data.items?.length) throw new Error('Video not found');
@@ -113,7 +118,6 @@ export default function VideoPage() {
         setRecommendedVideos(filteredVideos);
         localStorage.setItem(`recommended_${id}`, JSON.stringify(filteredVideos));
       } catch (err) {
-        // Fallback to localStorage if API fails
         const cached = localStorage.getItem(`recommended_${id}`);
         if (cached) {
           setRecommendedVideos(JSON.parse(cached));
@@ -123,7 +127,6 @@ export default function VideoPage() {
       }
     };
 
-    // Check for cached recommendations
     const cachedRecs = localStorage.getItem(`recommended_${id}`);
     if (cachedRecs) {
       setRecommendedVideos(JSON.parse(cachedRecs));
@@ -136,18 +139,19 @@ export default function VideoPage() {
 
   const getFirstThreeLines = (text: string) => text.split('\n').slice(0, 3).join('\n');
 
+  // ** PASS userId AND videoDetails.id to store actions **
   const handleFavorite = () => {
     if (!videoDetails) return;
     favorites.includes(videoDetails.id)
-      ? removeFavorite(videoDetails.id)
-      : addFavorite(videoDetails.id);
+      ? removeFavorite(userId, videoDetails.id)
+      : addFavorite(userId, videoDetails.id);
   };
 
   const handleBookmark = () => {
     if (!videoDetails) return;
     bookmarks.includes(videoDetails.id)
-      ? removeBookmark(videoDetails.id)
-      : addBookmark(videoDetails.id);
+      ? removeBookmark(userId, videoDetails.id)
+      : addBookmark(userId, videoDetails.id);
   };
 
   const addNewNote = () => {

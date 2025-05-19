@@ -18,12 +18,13 @@ import {
   FiHeart,
   FiCompass,
   FiDollarSign,
-  FiActivity
+  FiActivity,
+  FiSearch
 } from 'react-icons/fi'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
-const filters = {
+const searchOptions = {
   languages: [
     { id: 1, name: 'English', code: 'en' },
     { id: 2, name: 'Spanish', code: 'es' },
@@ -34,7 +35,7 @@ const filters = {
     { id: 7, name: 'Chinese', code: 'zh' },
     { id: 8, name: 'Hindi', code: 'hi' },
     { id: 9, name: 'Arabic', code: 'ar' },
-    { id: 10, name: 'Russian', code: 'ru' },
+    { id: 10, name: 'Amharic', code: 'am' },
   ],
   categories: [
     {
@@ -61,6 +62,17 @@ const filters = {
       ]
     },
     {
+      id: 3,
+      name: 'News & Politics',
+      icon: <FiActivity className="text-gray-500" />,
+      subcategories: [
+        { id: 301, name: 'World News', code: 'world-news' },
+        { id: 302, name: 'Politics', code: 'politics' },
+        { id: 303, name: 'Business News', code: 'business-news' },
+        { id: 304, name: 'Technology News', code: 'tech-news' },
+      ]
+    },
+    {
       id: 4,
       name: 'Education',
       icon: <FiBook className="text-gray-500" />,
@@ -80,6 +92,28 @@ const filters = {
         { id: 502, name: 'AI & ML', code: 'ai-ml' },
         { id: 503, name: 'Gadgets', code: 'gadgets' },
         { id: 504, name: 'Cybersecurity', code: 'cybersecurity' },
+      ]
+    },
+    {
+      id: 6,
+      name: 'Gaming',
+      icon: <FiCompass className="text-gray-500" />,
+      subcategories: [
+        { id: 601, name: 'Gameplay', code: 'gameplay' },
+        { id: 602, name: 'Walkthroughs', code: 'walkthroughs' },
+        { id: 603, name: 'Esports', code: 'esports' },
+        { id: 604, name: 'Reviews', code: 'game-reviews' },
+      ]
+    },
+    {
+      id: 7,
+      name: 'Sports',
+      icon: <FiActivity className="text-gray-500" />,
+      subcategories: [
+        { id: 701, name: 'Football', code: 'football' },
+        { id: 702, name: 'Basketball', code: 'basketball' },
+        { id: 703, name: 'Tennis', code: 'tennis' },
+        { id: 704, name: 'Olympics', code: 'olympics' },
       ]
     },
   ],
@@ -105,14 +139,6 @@ const filters = {
     { id: 6, name: '8K (4320p)', code: '8k' },
     { id: 7, name: 'Live Streams', code: 'live' },
   ],
-  sortOptions: [
-    { id: 1, name: 'Most Popular', code: 'popular' },
-    { id: 2, name: 'Most Viewed', code: 'viewed' },
-    { id: 3, name: 'Newest First', code: 'newest' },
-    { id: 4, name: 'Oldest First', code: 'oldest' },
-    { id: 5, name: 'Highest Rated', code: 'rated' },
-    { id: 6, name: 'Most Commented', code: 'commented' },
-  ],
   contentTypes: [
     { id: 1, name: 'All Types', code: 'all' },
     { id: 2, name: 'Videos', code: 'video' },
@@ -122,16 +148,19 @@ const filters = {
   ]
 }
 
-export default function Sidebar() {
+export default function SearchSidebar() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({})
+ 
 
-  const handleFilterChange = (filterKey: string, value: string) => {
+  const handleSearchChange = (filterKey: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString())
     value ? params.set(filterKey, value) : params.delete(filterKey)
     router.push(`?${params.toString()}`, { scroll: false })
   }
+
+
 
   const toggleCategory = (categoryId: number) => {
     setExpandedCategories(prev => ({
@@ -147,7 +176,7 @@ export default function Sidebar() {
     return option ? option.name : `Select ${paramKey}`
   }
 
-  const renderFilter = (
+  const renderSearchFilter = (
     label: string,
     icon: React.ReactNode,
     paramKey: string,
@@ -157,7 +186,7 @@ export default function Sidebar() {
       as="div"
       className="relative"
       value={searchParams.get(paramKey) || ''}
-      onChange={(value) => handleFilterChange(paramKey, value)}
+      onChange={(value) => handleSearchChange(paramKey, value)}
     >
       {({ open }) => (
         <>
@@ -211,7 +240,7 @@ export default function Sidebar() {
           Categories
         </h3>
         <div className="space-y-1">
-          {filters.categories.map(category => (
+          {searchOptions.categories.map(category => (
             <div key={category.id} className="border rounded-md overflow-hidden">
               <button
                 onClick={() => toggleCategory(category.id)}
@@ -233,7 +262,7 @@ export default function Sidebar() {
                   {category.subcategories.map(sub => (
                     <button
                       key={sub.id}
-                      onClick={() => handleFilterChange('category', sub.code)}
+                      onClick={() => handleSearchChange('category', sub.code)}
                       className={`w-full text-left p-1.5 text-xs rounded ${
                         searchParams.get('category') === sub.code 
                           ? 'bg-primary-blue-100 text-primary-blue' 
@@ -255,18 +284,19 @@ export default function Sidebar() {
   return (
     <aside className="w-80 h-screen sticky left-0 bg-white shadow-sm p-6 overflow-y-auto">
       <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-        <FiFilter className="text-primary-blue" />
-        Filters
+        <FiSearch className="text-primary-blue" />
+        Search Options
       </h2>
 
+
       <div className="space-y-6">
-        {renderFilter('Sort By', <FiTrendingUp className="text-gray-500" />, 'sort', filters.sortOptions)}
-        {renderFilter('Content Type', <FiCamera className="text-gray-500" />, 'type', filters.contentTypes)}
+        {renderSearchFilter('Content Type', <FiCamera className="text-gray-500" />, 'contentType', searchOptions.contentTypes)}
+        {renderSearchFilter('Language', <FiGlobe className="text-gray-500" />, 'language', searchOptions.languages)}
         {renderCategoryFilter()}
-        {renderFilter('Language', <FiGlobe className="text-gray-500" />, 'language', filters.languages)}
-        {renderFilter('Duration', <FiClock className="text-gray-500" />, 'duration', filters.durations)}
-        {renderFilter('Upload Date', <FiCalendar className="text-gray-500" />, 'uploadDate', filters.uploadDates)}
-        {renderFilter('Quality', <FiFilm className="text-gray-500" />, 'quality', filters.qualities)}
+        {renderSearchFilter('Duration', <FiClock className="text-gray-500" />, 'duration', searchOptions.durations)}
+        {renderSearchFilter('Upload Date', <FiCalendar className="text-gray-500" />, 'uploadDate', searchOptions.uploadDates)}
+        {renderSearchFilter('Quality', <FiFilm className="text-gray-500" />, 'quality', searchOptions.qualities)}
+
       </div>
     </aside>
   )
