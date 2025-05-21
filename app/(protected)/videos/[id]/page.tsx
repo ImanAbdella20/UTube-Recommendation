@@ -1,3 +1,4 @@
+// app/videos/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,9 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FiBookmark, FiHeart, FiTrash2 } from 'react-icons/fi';
 import { formatViews, formatPublishedAt, fetchInitialVideos } from '@/lib/api/videos';
-import { useVideoStore } from '@/store/videoStore';
+import { Note, useVideoStore } from '@/store/videoStore';
+import { useNoteStore } from '@/store/videoStore'
 import VideoCard from '@/components/VideoCard';
 import { Video } from '@/types/FilterState';
+import { useAuth } from '@/context/AuthContext';
 
 interface VideoDetails {
   id: string;
@@ -24,16 +27,14 @@ export default function VideoPage() {
   const router = useRouter();
   const params = useParams();
   const { id } = params;
-
-  // *** HARD-CODED USER ID FOR DEMO, replace with your auth user id ***
-  const userId = 'currentUserId123'; // Replace with actual user ID from auth/session
+  const { userId } = useAuth();
 
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
   const [recommendedVideos, setRecommendedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState<string[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState('');
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -47,25 +48,18 @@ export default function VideoPage() {
     removeFavorite,
   } = useVideoStore();
 
-  // Get user-specific bookmarks and favorites arrays
-  const bookmarks = getUserBookmarks(userId);
-  const favorites = getUserFavorites(userId);
+  const { getUserNotes, addNote, removeNote } = useNoteStore();
 
-  // Load notes from localStorage when component mounts
+  // Get user-specific data
+  const bookmarks = getUserBookmarks(userId || '');
+  const favorites = getUserFavorites(userId || '');
+  const allUserNotes = getUserNotes(userId || '');
+
+  // Filter notes for this video
   useEffect(() => {
     if (!id) return;
-
-    const savedNotes = localStorage.getItem(`video_notes_${id}`);
-    if (savedNotes) {
-      setNotes(JSON.parse(savedNotes));
-    }
-  }, [id]);
-
-  // Save notes to localStorage whenever they change
-  useEffect(() => {
-    if (!id) return;
-    localStorage.setItem(`video_notes_${id}`, JSON.stringify(notes));
-  }, [notes, id]);
+    setNotes(allUserNotes.filter(note => note.videoId === id));
+  }, [id, allUserNotes]);
 
   // Load video details and recommendations
   useEffect(() => {
@@ -139,27 +133,31 @@ export default function VideoPage() {
 
   const getFirstThreeLines = (text: string) => text.split('\n').slice(0, 3).join('\n');
 
-  // ** PASS userId AND videoDetails.id to store actions **
   const handleFavorite = () => {
-    if (!videoDetails) return;
+    if (!videoDetails || !userId) return;
     favorites.includes(videoDetails.id)
       ? removeFavorite(userId, videoDetails.id)
       : addFavorite(userId, videoDetails.id);
+    window.dispatchEvent(new CustomEvent('favorites-updated'));
   };
 
   const handleBookmark = () => {
-    if (!videoDetails) return;
+    if (!videoDetails || !userId) return;
     bookmarks.includes(videoDetails.id)
       ? removeBookmark(userId, videoDetails.id)
       : addBookmark(userId, videoDetails.id);
+    window.dispatchEvent(new CustomEvent('bookmarks-updated'));
   };
 
   const addNewNote = () => {
-    if (newNote.trim()) {
-      const updatedNotes = [...notes, newNote.trim()];
-      setNotes(updatedNotes);
+    if (newNote.trim() && videoDetails && userId) {
+      addNote(userId, videoDetails.id, newNote.trim());
       setNewNote('');
     }
+  };
+
+  const handleRemoveNote = (noteId: string) => {
+    if (userId) removeNote(userId, noteId);
   };
 
   if (!id) return <div className="p-8">Invalid Video</div>;
@@ -208,14 +206,16 @@ export default function VideoPage() {
             <div>
               {formatViews(videoDetails.viewCount)} • {formatPublishedAt(videoDetails.publishedAt)}
             </div>
-            <div className="flex gap-3">
-              <button onClick={handleFavorite}>
-                <FiHeart className={`w-5 h-5 ${favorites.includes(videoDetails.id) ? 'text-red-600' : ''}`} />
-              </button>
-              <button onClick={handleBookmark}>
-                <FiBookmark className={`w-5 h-5 ${bookmarks.includes(videoDetails.id) ? 'text-blue-600' : ''}`} />
-              </button>
-            </div>
+            {userId && (
+              <div className="flex gap-3">
+                <button onClick={handleFavorite}>
+                  <FiHeart className={`w-5 h-5 ${favorites.includes(videoDetails.id) ? 'text-red-600 ' : ''}`} />
+                </button>
+                <button onClick={handleBookmark}>
+                  <FiBookmark className={`w-5 h-5 ${bookmarks.includes(videoDetails.id) ? 'text-primary-blue' : ''}`} />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 flex items-center gap-4 p-4 bg-gray-100 rounded-lg">
@@ -273,13 +273,14 @@ export default function VideoPage() {
             <textarea
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addNewNote()}
-              placeholder="Write a note..."
-              className="w-full border p-2 rounded-lg min-h-[100px]"
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addNewNote()}
+              placeholder="Write a note about this video..."
+              className="w-full border p-3 rounded-lg min-h-[100px] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <button
               onClick={addNewNote}
-              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+              disabled={!newNote.trim()}
+              className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Add Note
             </button>
@@ -287,27 +288,34 @@ export default function VideoPage() {
             <div className="mt-6">
               <h3 className="font-medium mb-2">Your Notes ({notes.length})</h3>
               {notes.length === 0 ? (
-                <p className="text-gray-500">No notes yet</p>
+                <p className="text-gray-500 p-4 bg-gray-50 rounded-lg">No notes yet for this video</p>
               ) : (
-                notes.slice(0, showAllNotes ? notes.length : 3).map((note, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center bg-gray-100 p-3 rounded-lg mb-2"
-                  >
-                    <span>{note}</span>
-                    <button
-                      onClick={() => setNotes(notes.filter((_, i) => i !== index))}
-                      className="hover:text-red-600"
+                <div className="space-y-3">
+                  {notes.slice(0, showAllNotes ? notes.length : 3).map((note) => (
+                    <div
+                      key={note.id}
+                      className="bg-white p-4 rounded-lg shadow-sm border border-gray-100"
                     >
-                      <FiTrash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs text-gray-500">
+                          {new Date(note.createdAt).toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveNote(note.id)}
+                          className="text-gray-400 hover:text-red-500 p-1"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="whitespace-pre-line">{note.content}</p>
+                    </div>
+                  ))}
+                </div>
               )}
               {notes.length > 3 && (
                 <button
                   onClick={() => setShowAllNotes(!showAllNotes)}
-                  className="text-blue-600 mt-2 hover:underline text-sm"
+                  className="text-blue-600 mt-3 hover:underline text-sm"
                 >
                   {showAllNotes ? 'Show less' : 'Show all'}
                 </button>

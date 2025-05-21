@@ -16,6 +16,25 @@ interface VideoStoreState {
   removeFavorite: (userId: string, videoId: string) => void;
 }
 
+export interface Note {
+  id: string;
+  videoId: string;
+  content: string;
+  createdAt: Date;
+}
+
+
+
+interface NoteStoreState {
+  userNotes: {
+    [userId: string]: Note[];
+  };
+  getUserNotes: (userId: string) => Note[];
+  addNote: (userId: string, videoId: string, content: string) => void;
+  removeNote: (userId: string, noteId: string) => void;
+  updateNote: (userId: string, noteId: string, content: string) => void;
+}
+
 export const useVideoStore = create<VideoStoreState>()(
   persist(
     (set, get) => ({
@@ -106,6 +125,74 @@ export const useVideoStore = create<VideoStoreState>()(
       onRehydrateStorage: () => (state) => {
         console.log('Rehydrating user-based video store...', state);
       },
+    }
+  )
+);
+
+
+export const useNoteStore = create<NoteStoreState>()(
+  persist(
+    (set, get) => ({
+      userNotes: {},
+
+      getUserNotes: (userId) => {
+        return get().userNotes[userId] || [];
+      },
+
+      addNote: (userId, videoId, content) => {
+        set((state) => {
+          const userNotes = state.userNotes[userId] || [];
+          const newNote: Note = {
+            id: Date.now().toString(),
+            videoId,
+            content,
+            createdAt: new Date(),
+          };
+
+          return {
+            userNotes: {
+              ...state.userNotes,
+              [userId]: [...userNotes, newNote],
+            },
+          };
+        });
+        window.dispatchEvent(new CustomEvent('notes-updated'));
+      },
+
+      removeNote: (userId, noteId) => {
+        set((state) => {
+          const userNotes = state.userNotes[userId];
+          if (!userNotes) return state;
+
+          return {
+            userNotes: {
+              ...state.userNotes,
+              [userId]: userNotes.filter((note) => note.id !== noteId),
+            },
+          };
+        });
+        window.dispatchEvent(new CustomEvent('notes-updated'));
+      },
+
+      updateNote: (userId, noteId, content) => {
+        set((state) => {
+          const userNotes = state.userNotes[userId];
+          if (!userNotes) return state;
+
+          return {
+            userNotes: {
+              ...state.userNotes,
+              [userId]: userNotes.map((note) =>
+                note.id === noteId ? { ...note, content } : note
+              ),
+            },
+          };
+        });
+        window.dispatchEvent(new CustomEvent('notes-updated'));
+      },
+    }),
+    {
+      name: 'user-notes-store',
     }
   )
 );

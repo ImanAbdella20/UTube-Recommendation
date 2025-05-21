@@ -1,12 +1,14 @@
+// components/Header.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { FiSearch, FiBookmark, FiHeart, FiTrash2, FiUser, FiMenu, FiX } from 'react-icons/fi';
+import { FiSearch, FiBookmark, FiHeart, FiTrash2, FiUser, FiMenu, FiX, FiEdit2 } from 'react-icons/fi';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useVideoStore } from '@/store/videoStore';
-import { LogOut } from "lucide-react";
+import { Note, useVideoStore } from '@/store/videoStore';
+import { useNoteStore } from '@/store/videoStore';
+import { BookMarked, LogOut } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 
 interface VideoInfo {
@@ -28,12 +30,48 @@ const Header = () => {
     removeFavorite,
   } = useVideoStore();
 
-  const bookmarks = userId ? getUserBookmarks(userId) : [];
-  const favorites = userId ? getUserFavorites(userId) : [];
+  const { getUserNotes, removeNote } = useNoteStore();
+
+  // State for bookmarks, favorites, and notes with force update mechanism
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+
+  // Get fresh data
+  useEffect(() => {
+    if (userId) {
+      setBookmarks(getUserBookmarks(userId));
+      setFavorites(getUserFavorites(userId));
+      setNotes(getUserNotes(userId));
+    } else {
+      setBookmarks([]);
+      setFavorites([]);
+      setNotes([]);
+    }
+  }, [userId, getUserBookmarks, getUserFavorites, getUserNotes, lastUpdate]);
+
+  // Listen for updates from other components
+  useEffect(() => {
+    const handleUpdates = () => {
+      setLastUpdate(Date.now());
+    };
+
+    window.addEventListener('bookmarks-updated', handleUpdates);
+    window.addEventListener('favorites-updated', handleUpdates);
+    window.addEventListener('notes-updated', handleUpdates);
+
+    return () => {
+      window.removeEventListener('bookmarks-updated', handleUpdates);
+      window.removeEventListener('favorites-updated', handleUpdates);
+      window.removeEventListener('notes-updated', handleUpdates);
+    };
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [bookmarkVideos, setBookmarkVideos] = useState<VideoInfo[]>([]);
@@ -41,6 +79,7 @@ const Header = () => {
 
   const bookmarksRef = useRef<HTMLDivElement>(null);
   const favoritesRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +88,7 @@ const Header = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!bookmarksRef.current?.contains(event.target as Node)) setShowBookmarks(false);
       if (!favoritesRef.current?.contains(event.target as Node)) setShowFavorites(false);
+      if (!notesRef.current?.contains(event.target as Node)) setShowNotes(false);
       if (!userMenuRef.current?.contains(event.target as Node)) setShowUserMenu(false);
       if (!mobileMenuRef.current?.contains(event.target as Node) &&
         !(event.target as HTMLElement).closest('.mobile-menu-button')) {
@@ -59,23 +99,35 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch video thumbnails for bookmarks/favorites
+  // Fetch video details for bookmarks/favorites
+  const fetchVideoDetails = useCallback(async (ids: string[]): Promise<VideoInfo[]> => {
+    return ids.map(id => ({
+      id,
+      title: `Video ${id}`,
+      thumbnail: `https://i.ytimg.com/vi/${id}/default.jpg`
+    }));
+  }, []);
+
+  // Update video lists when dropdowns open
   useEffect(() => {
-    const fetchVideoDetails = async (ids: string[]) => {
-      return ids.map(id => ({
-        id,
-        title: `Video ${id}`,
-        thumbnail: `https://i.ytimg.com/vi/${id}/default.jpg`
-      }));
+    const updateVideos = async () => {
+      if (showBookmarks && bookmarks.length > 0) {
+        const videos = await fetchVideoDetails(bookmarks);
+        setBookmarkVideos(videos);
+      }
+      if (showFavorites && favorites.length > 0) {
+        const videos = await fetchVideoDetails(favorites);
+        setFavoriteVideos(videos);
+      }
     };
+    updateVideos();
+  }, [showBookmarks, showFavorites, bookmarks, favorites, fetchVideoDetails]);
 
-    if (showBookmarks && bookmarks.length) fetchVideoDetails(bookmarks).then(setBookmarkVideos);
-    if (showFavorites && favorites.length) fetchVideoDetails(favorites).then(setFavoriteVideos);
-  }, [showBookmarks, showFavorites, bookmarks, favorites]);
-
+  // Close all menus on route change
   useEffect(() => {
     setShowBookmarks(false);
     setShowFavorites(false);
+    setShowNotes(false);
     setShowUserMenu(false);
     setShowMobileMenu(false);
   }, [pathname]);
@@ -94,7 +146,24 @@ const Header = () => {
     handleSearchChange('q', searchQuery);
   };
 
-  const renderVideoItem = (video: VideoInfo, isBookmark: boolean) => (
+  const handleRemoveBookmark = useCallback((videoId: string) => {
+    if (userId) removeBookmark(userId, videoId);
+    setBookmarkVideos(prev => prev.filter(v => v.id !== videoId));
+    setLastUpdate(Date.now());
+  }, [userId, removeBookmark]);
+
+  const handleRemoveFavorite = useCallback((videoId: string) => {
+    if (userId) removeFavorite(userId, videoId);
+    setFavoriteVideos(prev => prev.filter(v => v.id !== videoId));
+    setLastUpdate(Date.now());
+  }, [userId, removeFavorite]);
+
+  const handleRemoveNote = useCallback((noteId: string) => {
+    if (userId) removeNote(userId, noteId);
+    setLastUpdate(Date.now());
+  }, [userId, removeNote]);
+
+  const renderVideoItem = useCallback((video: VideoInfo, isBookmark: boolean) => (
     <div
       key={video.id}
       onClick={() => router.push(`/videos/${video.id}`)}
@@ -113,15 +182,40 @@ const Header = () => {
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (userId) {
-            isBookmark
-              ? removeBookmark(userId, video.id)
-              : removeFavorite(userId, video.id);
-          }
+          isBookmark ? handleRemoveBookmark(video.id) : handleRemoveFavorite(video.id);
         }}
         className="text-gray-400 hover:text-red-500 p-1 ml-2"
       >
         <FiTrash2 className="w-4 h-4" />
+      </button>
+    </div>
+  ), [handleRemoveBookmark, handleRemoveFavorite, router]);
+
+  const renderNoteItem = (note: Note) => (
+    <div
+      key={note.id}
+      className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+    >
+      <div className="flex justify-between items-start mb-1">
+        <span className="text-xs text-gray-500">
+          {new Date(note.createdAt).toLocaleDateString()}
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRemoveNote(note.id);
+          }}
+          className="text-gray-400 hover:text-red-500 p-1"
+        >
+          <FiTrash2 className="w-3 h-3" />
+        </button>
+      </div>
+      <p className="text-sm line-clamp-2">{note.content}</p>
+      <button
+        onClick={() => router.push(`/videos/${note.videoId}`)}
+        className="mt-2 text-xs text-blue-500 hover:underline"
+      >
+        View Video
       </button>
     </div>
   );
@@ -177,6 +271,45 @@ const Header = () => {
               </div>
             </form>
 
+            {/* Notes */}
+            {userId && (
+              <div className="relative" ref={notesRef}>
+                
+                {showNotes && (
+                  <div className="absolute right-0 top-12 w-72 bg-white shadow-lg rounded-lg z-20">
+                    <div className="p-4 border-b flex justify-between items-center">
+                      <h3 className="font-medium">Saved Notes ({notes.length})</h3>
+                      <button 
+                        onClick={() => setShowNotes(false)} 
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {notes.length > 0 ? (
+                        <>
+                          {notes.map(note => renderNoteItem(note))}
+                          <div className="p-3 text-center">
+                            <button
+                              onClick={() => router.push('/savednotes')}
+                              className="text-sm text-blue-500 hover:underline"
+                            >
+                              View All Notes
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">
+                          No saved notes yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Favorites */}
             {userId && (
               <div className="relative" ref={favoritesRef}>
@@ -184,11 +317,14 @@ const Header = () => {
                   onClick={() => {
                     setShowFavorites(!showFavorites);
                     setShowBookmarks(false);
+                    setShowNotes(false);
                   }}
                   className="p-2 rounded-full hover:bg-gray-200 relative"
                 >
-                  <FiHeart className={`w-5 h-5 ${favorites.length > 0 ? 'text-red-500' : 'text-gray-600'}`} />
-                  {favorites.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
+                  <FiHeart className={`w-5 h-5 ${favorites.length > 0 ? 'text-red-500 ' : 'text-gray-600'}`} />
+                  {favorites.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                  )}
                 </button>
                 {showFavorites && (
                   <div className="absolute right-0 top-12 w-64 bg-white shadow-lg rounded-lg z-20">
@@ -197,7 +333,9 @@ const Header = () => {
                       <button onClick={() => setShowFavorites(false)} className="text-gray-500">×</button>
                     </div>
                     <div className="max-h-[180px] overflow-y-auto">
-                      {favoriteVideos.length > 0 ? favoriteVideos.map(v => renderVideoItem(v, false)) : (
+                      {favoriteVideos.length > 0 ? (
+                        favoriteVideos.map(v => renderVideoItem(v, false))
+                      ) : (
                         <div className="p-4 text-center text-gray-500">
                           {favorites.length > 0 ? 'Loading...' : 'No favorites'}
                         </div>
@@ -215,11 +353,14 @@ const Header = () => {
                   onClick={() => {
                     setShowBookmarks(!showBookmarks);
                     setShowFavorites(false);
+                    setShowNotes(false);
                   }}
                   className="p-2 rounded-full hover:bg-gray-200 relative"
                 >
-                  <FiBookmark className={`w-5 h-5 ${bookmarks.length > 0 ? 'text-blue-500' : 'text-gray-600'}`} />
-                  {bookmarks.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />}
+                  <FiBookmark className={`w-5 h-5 ${bookmarks.length > 0 ? 'text-primary-blue' : 'text-gray-600'}`} />
+                  {bookmarks.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                  )}
                 </button>
                 {showBookmarks && (
                   <div className="absolute right-0 top-12 w-64 bg-white shadow-lg rounded-lg z-20">
@@ -228,7 +369,9 @@ const Header = () => {
                       <button onClick={() => setShowBookmarks(false)} className="text-gray-500">×</button>
                     </div>
                     <div className="max-h-[180px] overflow-y-auto">
-                      {bookmarkVideos.length > 0 ? bookmarkVideos.map(v => renderVideoItem(v, true)) : (
+                      {bookmarkVideos.length > 0 ? (
+                        bookmarkVideos.map(v => renderVideoItem(v, true))
+                      ) : (
                         <div className="p-4 text-center text-gray-500">
                           {bookmarks.length > 0 ? 'Loading...' : 'No saved videos'}
                         </div>
@@ -265,10 +408,20 @@ const Header = () => {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                   >
-                    <div className='flex'>
-                    <FiUser className="mr-2" /> Profile
+                    <div className='flex items-center'>
+                      <FiUser className="mr-2" /> Profile
                     </div>
-                    
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      router.push('/savednotes');
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                  >
+                    <div className='flex items-center'>
+                      <BookMarked className="mr-2 w-4 h-4" /> Saved Notes
+                    </div>
                   </button>
                   <button
                     onClick={() => {
@@ -277,10 +430,9 @@ const Header = () => {
                     }}
                     className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                   >
-                    <div className='flex'>
-                    <LogOut className="mr-2 w-4 h-4" /> Sign Out
+                    <div className='flex items-center'>
+                      <LogOut className="mr-2 w-4 h-4" /> Sign Out
                     </div>
-                   
                   </button>
                 </div>
               )}
