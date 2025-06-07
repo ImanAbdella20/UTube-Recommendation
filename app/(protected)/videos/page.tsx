@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
+
 const VideosPage = () => {
   return (
     <div className="p-8 max-w-screen-lg mx-auto">
